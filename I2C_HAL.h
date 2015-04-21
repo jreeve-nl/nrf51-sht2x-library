@@ -19,11 +19,15 @@
 //The communication on SDA and SCL is done by switching pad direction
 //For a low level on SCL or SDA, direction is set to output. For a high level on
 //SCL or SDA, direction is set to input. (pull up resistor active)
+
+#ifdef DEVICE_NEC_V850
 #define SDA      PM3H_bit.no0 //SDA on I/O P38 defines direction (input=1/output=0)
 #define SDA_CONF P3H_bit.no0  //SDA level on output direction
 #define SCL      PM3H_bit.no1 //SCL on I/O P39 defines direction (input=1/output=0)
 #define SCL_CONF P3H_bit.no1  //SCL level on output direction
+#elsif DEVICE_NORDIC_NRF51
 
+#endif
 //---------- Enumerations ------------------------------------------------------
 //  I2C level
 typedef enum{

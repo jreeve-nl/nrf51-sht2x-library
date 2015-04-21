@@ -15,6 +15,7 @@
 #include "io70f3740.h"             // controller register definitions
 #include <assert.h>                // assert functions
 #include <intrinsics.h>            // low level microcontroller commands
+#include "config.h"                // config
 #include "typedefs.h"              // type definitions
 
 //---------- Enumerations ------------------------------------------------------
