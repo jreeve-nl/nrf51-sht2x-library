@@ -32,25 +32,57 @@
 
 /*lint ++flb "Enter library region" */
 
+typedef enum {
+  SHT2X_ERROR_NONE                    = 0x00, // No errror
+  SHT2X_ERROR_READ_FAILED             = 0x01, // failed to read the user register
+  SHT2X_ERROR_CRC                     = 0x02  // CRC error
+} sht2x_error_t;
+
+typedef uint8_t user_register_t;
+
+typedef union
+{
+  struct
+  {
+    user_register_t user_register;
+    uint8_t         checksum;
+  } result;
+  uint16_t raw;
+} read_config_result_t;
+
 /**
  * @brief Function for reading the current configuration of the sensor.
  *
  * @return uint8_t Zero if communication with the sensor failed. Contents (always non-zero) of configuration register (@ref SHT2X_ONESHOT_MODE and @ref SHT2X_CONVERSION_DONE) if communication succeeded.
  */
-static uint8_t sht2x_check_crc(uint8_t data[], uint8_t nbrOfBytes, uint8_t checksum)
+static uint8_t sht2x_check_crc(uint8_t data[], uint8_t num_bytes, uint8_t checksum)
 {
   uint8_t crc = 0;	
-  uint8_t byteCtr;
+  uint8_t byte_index;
   //calculates 8-Bit checksum with given polynomial
-  for (byteCtr = 0; byteCtr < nbrOfBytes; ++byteCtr)
-  { crc ^= (data[byteCtr]);
+  for (byte_index = 0; byte_index < num_bytes; ++byte_index)
+  {
+    crc ^= (data[byte_index]);
     for (uint8_t bit = 8; bit > 0; --bit)
-    { if (crc & 0x80) crc = (crc << 1) ^ POLYNOMIAL;
-      else crc = (crc << 1);
+    {
+      if (crc & 0x80)
+      {
+        crc = (crc << 1) ^ POLYNOMIAL;
+      }
+      else
+      {
+        crc = (crc << 1);
+      }
     }
   }
-  if (crc != checksum) return CHECKSUM_ERROR;
-  else return 0;
+  if (crc != checksum)
+  {
+    return SHT2X_ERROR_CRC;
+  }
+  else
+  {
+    return 0;
+  }
 }
 
 
@@ -59,75 +91,51 @@ static uint8_t sht2x_check_crc(uint8_t data[], uint8_t nbrOfBytes, uint8_t check
  *
  * @return uint8_t Zero if communication with the sensor failed. Contents (always non-zero) of configuration register (@ref SHT2X_ONESHOT_MODE and @ref SHT2X_CONVERSION_DONE) if communication succeeded.
  */
-static uint8_t sht2x_config_read(void)
+static uint8_t sht2x_config_read(user_register_t* user_register)
 {
+  read_config_result_t result;
 
-  u8t checksum;   //variable for checksum byte
-  u8t error=0;    //variable for error code
-
-  I2c_StartCondition();
-  error |= I2c_WriteByte (I2C_ADR_W);
-  error |= I2c_WriteByte (USER_REG_R);
-  I2c_StartCondition();
-  error |= I2c_WriteByte (I2C_ADR_R);
-  *pRegisterValue = I2c_ReadByte(ACK);
-  checksum=I2c_ReadByte(NO_ACK);
-  error |= SHT2x_CheckCrc (pRegisterValue,1,checksum);
-  I2c_StopCondition();
-  return error;
-
-  // ***************
-  uint8_t config = 0;
-  uint8_t checksum = 0;
-    
   // Write: command protocol
   if (twi_master_transfer(SHT2X_I2C_ADDRESS, (uint8_t*)USER_REG_R, 1, TWI_DONT_ISSUE_STOP))
   {
-    if (twi_master_transfer(SHT2X_I2C_ADDRESS | TWI_READ_BIT, &config, 1, TWI_ISSUE_STOP)) // Read: current configuration
+    if (twi_master_transfer(SHT2X_I2C_ADDRESS | TWI_READ_BIT, (uint8_t*)&result.raw, sizeof(read_config_result_t), TWI_ISSUE_STOP)) // Read: current configuration
     {
       // validate checksum
-      if (twi_master_transfer(SHT2X_I2C_ADDRESS | TWI_READ_BIT, &checksum, 1, TWI_ISSUE_STOP)) // Read: checksum
+      uint8_t checksum_error = sht2x_check_crc((uint8_t*)&result.result.user_register, sizeof(user_register_t), result.result.checksum);
+
+      if (checksum_error == SHT2X_ERROR_CRC || checksum_error)
       {
-        
+        // propagate out the error.  Poor design probably.
+        return SHT2X_ERROR_CRC;
       }
-      // Read succeeded, configuration stored to variable "config"
+      // Read succeeded
+      *user_register = result.raw;
     }
     else
     {
-      // Read failed
-      config = 0;
+      return SHT2X_ERROR_READ_FAILED;
     }
   } 
 
-  return config;
+  return SHT2X_ERROR_NONE;
 }
 
 /**
- * @brief Function for reading the current configuration of the sensor.
+ * @brief Function for initialising the sensor
  *
  * @return uint8_t Zero if communication with the sensor failed. Contents (always non-zero) of configuration register (@ref SHT2X_ONESHOT_MODE and @ref SHT2X_CONVERSION_DONE) if communication succeeded.
  */
-bool sht2x_init(uint8_t device_address)
+bool sht2x_init()
 {
-  nrf_delay(15); // delay at least 15ms for the sensor to power up
+  nrf_delay_ms(15); // delay at least 15ms for the sensor to power up
   bool transfer_succeeded = true;
+  user_register_t user_register;
 
+  uint8_t result = sht2x_config_read(user_register);
 
-
-  uint8_t config = sht2x_config_read();
-
-  if (config != 0)
+  if (config == SHT2X_ERROR_NONE)
   {
-    // Configure SHT2X for 1SHOT mode if not done so already.
-    if (!(config & SHT2X_ONESHOT_MODE))
-    {
-      uint8_t data_buffer[2];
-  
-      data_buffer[0] = command_access_config;
-      data_buffer[1] = SHT2X_ONESHOT_MODE;
-  
-      transfer_succeeded &= twi_master_transfer(m_device_address, data_buffer, 2, TWI_ISSUE_STOP);
-    }
+    // do stuff
   }
   else
   {

@@ -99,14 +99,19 @@ bool sht2x_init();
  * @retval true If conversion started successfully
  * @retval false If conversion failed to start.
  */
-uint8_t sht2x_start_conversion(sht2x_measure_type_t measure_type, nt16 *pMeasurand);
+bool sht2x_start_conversion(sht2x_measure_type_t measure_type, nt16 *pMeasurand);
 
+/**
+ * @brief Function for polling to test if a conversion is complete.
+ *
+ * @note Before calling this function, you must have called sht2x_start_conversion()
+ *       and it must have returned true.  
+ *
+ * @return
+ * @retval true If conversion started successfully
+ * @retval false If conversion failed to start.
+ */
 bool sht2x_is_conversion_done(void);
-// 
-// input:  eSHT2xMeasureType
-// output: *pMeasurand:  humidity / temperature as raw value
-// return: error
-// note:   timing for timeout may be changed
 
 /**
  * @brief Function for making a SHT2x temperature or humidity Hold Master measurement.
@@ -116,10 +121,10 @@ bool sht2x_is_conversion_done(void);
  *       until measurement is ready or a timeout occurred.
  *
  * @return
- * @retval true If conversion started successfully
+ * @retval true If measurement successful.
  * @retval false If conversion failed to start.
  */
-bool sht2x_measure(sht2x_measure_type sht2x_measure_type, nt16 *pMeasurand);
+bool sht2x_measure(sht2x_measure_type_t sht2x_measure_type, nt16 *pMeasurand);
 
 
 /**
@@ -133,34 +138,36 @@ bool sht2x_measure(sht2x_measure_type sht2x_measure_type, nt16 *pMeasurand);
  * @retval false If failed to perform reset
  */
 uint8_t sht2x_soft_reset();
-//==============================================================================
 
-// calculates the relative humidity
-// input:  sRH: humidity raw value (16bit scaled)
-// return: pHumidity relative humidity [%RH]
-//==============================================================================
-float sht2x_calc_RH(uint16_t u16sRH);
-//==============================================================================
-
-// calculates temperature
-// input:  sT: temperature raw value (16bit scaled)
-// return: temperature [°C]
-//==============================================================================
-float sht2x_calc_temperature_c(uint16_t u16sT);
-//==============================================================================
-
-// gets serial number of SHT2x according application note "How To
-// Read-Out the Serial Number"
-// note:   readout of this function is not CRC checked
-//
-// input:  -
-// output: u8SerialNumber: Array of 8 bytes (64Bits)
-//         MSB                                         LSB
-//         u8SerialNumber[7]             u8SerialNumber[0]
-//         SNA_1 SNA_0 SNB_3 SNB_2 SNB_1 SNB_0 SNC_1 SNC_0
-// return: error
-//==============================================================================
-uint8_t sht2x_get_serial_number(uint8_t u8SerialNumber[]);
-//==============================================================================
+/**
+ * @brief Function for performing a conversion from raw sensor data to RH
+ *
+ *
+ * @return The RH value in percentage points.
+ */
+float sht2x_calc_RH(uint16_t raw_rh);
+/**
+ * @brief Function for performing a conversion from raw sensor data to Temperature in degrees celsius
+ *
+ *
+ * @return The temperature value in degrees celsius
+ */
+float sht2x_calc_temperature_c(uint16_t raw_temperature);
+/**
+ * @brief Function for getting serial number of SHT2x according application note "How To
+ *        Read-Out the Serial Number"
+ *
+ * @note Readout of this function is not CRC checked.
+ *
+ * @param serial_number Array of 8 bytes (64Bits)
+ *         MSB                                         LSB
+ *         u8SerialNumber[7]             u8SerialNumber[0]
+ *         SNA_1 SNA_0 SNB_3 SNB_2 SNB_1 SNB_0 SNC_1 SNC_0
+ *
+ * @return
+ * @retval true If serial number obtained successfuly.
+ * @retval false If failed to obtain serial number.
+ */
+bool sht2x_get_serial_number(uint8_t serial_number[]);
 
 #endif // NRF51_SHT2X_SHT2X_H
