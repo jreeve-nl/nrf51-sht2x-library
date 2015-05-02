@@ -34,8 +34,6 @@
 
 #include "typedefs.h"
 
-const uint16_t POLYNOMIAL = 0x131;  //P(x)=x^8+x^5+x^4+1 = 100110001
-
 // sensor command
 typedef enum {
   TRIG_T_MEASUREMENT_HM    = 0xE3, // command trig. temp meas. hold master
@@ -124,7 +122,7 @@ bool sht2x_is_conversion_done(void);
  * @retval true If measurement successful.
  * @retval false If conversion failed to start.
  */
-bool sht2x_measure(sht2x_measure_type_t sht2x_measure_type, nt16 *pMeasurand);
+bool sht2x_measure(sht2x_measure_type_t measure_type, nt16 *pMeasurand);
 
 
 /**
@@ -137,7 +135,7 @@ bool sht2x_measure(sht2x_measure_type_t sht2x_measure_type, nt16 *pMeasurand);
  * @retval true If reset successful
  * @retval false If failed to perform reset
  */
-uint8_t sht2x_soft_reset();
+bool sht2x_soft_reset();
 
 /**
  * @brief Function for performing a conversion from raw sensor data to RH
@@ -145,14 +143,14 @@ uint8_t sht2x_soft_reset();
  *
  * @return The RH value in percentage points.
  */
-float sht2x_calc_RH(uint16_t raw_rh);
+float sht2x_calc_humidity_rh(uint16_t raw_rh);
 /**
  * @brief Function for performing a conversion from raw sensor data to Temperature in degrees celsius
  *
  *
  * @return The temperature value in degrees celsius
  */
-float sht2x_calc_temperature_c(uint16_t raw_temperature);
+float sht2x_calc_temperature_celsius(uint16_t raw_temperature);
 /**
  * @brief Function for getting serial number of SHT2x according application note "How To
  *        Read-Out the Serial Number"
