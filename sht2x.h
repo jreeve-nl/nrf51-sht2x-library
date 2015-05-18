@@ -150,7 +150,7 @@ float sht2x_calc_humidity_rh(uint16_t raw_rh);
  *
  * @return The temperature value in degrees celsius
  */
-float sht2x_calc_temperature_celsius(uint16_t raw_temperature);
+float sht2x_calc_temp_celsius(uint16_t raw_temperature);
 /**
  * @brief Function for getting serial number of SHT2x according application note "How To
  *        Read-Out the Serial Number"

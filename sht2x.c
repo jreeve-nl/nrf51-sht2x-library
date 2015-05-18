@@ -17,7 +17,7 @@
 
 /** @file
  *
- * @defgroup nrf51_sht2x_sht21 main.c
+ * @defgroup nrf51_sht2x_sht21 sht2x.c
  * @{
  * @ingroup nrf51_sht2x_sht21
  * @brief SHT2x I2C library for nRF51 devices
@@ -104,14 +104,17 @@ static uint8_t sht2x_check_crc(uint8_t data[], uint8_t num_bytes, uint8_t checks
  *
  * @return uint8_t Zero if communication with the sensor failed. Contents (always non-zero) of configuration register (@ref SHT2X_ONESHOT_MODE and @ref SHT2X_CONVERSION_DONE) if communication succeeded.
  */
-static uint8_t sht2x_config_read(user_register_t* user_register)
+static sht2x_error_t sht2x_config_read(user_register_t* user_register)
 {
   read_config_result_t result;
 
+  sht2x_error_t error = SHT2X_ERROR_NONE;
+  uint8_t command = USER_REG_R;
+
   // Write: command protocol
-  if (twi_master_transfer(SHT2X_I2C_ADDRESS, (uint8_t*)USER_REG_R, 1, TWI_DONT_ISSUE_STOP))
+  if (twi_master_transfer(SHT2X_I2C_ADDRESS, &command, 1, TWI_DONT_ISSUE_STOP))
   {
-    if (twi_master_transfer(SHT2X_I2C_ADDRESS | TWI_READ_BIT, (uint8_t*)&result.raw, sizeof(read_config_result_t), TWI_ISSUE_STOP)) // Read: current configuration
+    if (twi_master_transfer(SHT2X_I2C_ADDRESS | TWI_READ_BIT, (uint8_t*)&result.raw, sizeof(read_config_result_t), TWI_DONT_ISSUE_STOP)) // Read: current configuration
     {
       // validate checksum
       uint8_t checksum_error = sht2x_check_crc((uint8_t*)&result.result.user_register, sizeof(user_register_t), result.result.checksum);
@@ -126,11 +129,14 @@ static uint8_t sht2x_config_read(user_register_t* user_register)
     }
     else
     {
-      return SHT2X_ERROR_READ_FAILED;
+      error = SHT2X_ERROR_READ_FAILED;
     }
-  } 
-
-  return SHT2X_ERROR_NONE;
+  }
+  else
+  {
+    error = SHT2X_ERROR_READ_FAILED;
+  }
+  return error;
 }
 
 /**
@@ -172,23 +178,31 @@ bool sht2x_is_temp_conversion_done(void)
 
 float sht2x_calc_humidity_rh(uint16_t u16sRH)
 {
-  float humidity_rh;              // variable for result
 
-  u16sRH &= ~0x0003;          // clear bits [1..0] (status bits)
+  // The raw values arrived in Big Endian / Network Byte Order
+  // and we are a Little Endian system so swap byte order.
+
+  float humidity_rh;              // variable for result
+  uint16_t swapped = ((nt16)u16sRH).s16.u8L << 8 | ((nt16)u16sRH).s16.u8H;
+  
+  swapped &= ~0x0003;          // clear bits [1..0] (status bits)
   //-- calculate relative humidity [%RH] --
 
-  humidity_rh = -6.0 + 125.0/65536 * (float)u16sRH; // RH= -6 + 125 * SRH/2^16
+  humidity_rh = -6.0 + 125.0/65536 * (float)swapped; // RH= -6 + 125 * SRH/2^16
   return humidity_rh;
 }
 
 float sht2x_calc_temp_celsius(uint16_t u16sT)
 {
-  float temperature_c;            // variable for result
+  // The raw values arrived in Big Endian / Network Byte Order
+  // and we are a Little Endian system so swap byte order.
 
-  u16sT &= ~0x0003;           // clear bits [1..0] (status bits)
+  float temperature_c;            // variable for result
+  uint16_t swapped = ((nt16)u16sT).s16.u8L << 8 | ((nt16)u16sT).s16.u8H;
+  swapped &= ~0x0003;           // clear bits [1..0] (status bits)
 
   //-- calculate temperature [°C] --
-  temperature_c = -46.85 + 175.72/65536 *(float)u16sT; //T= -46.85 + 175.72 * ST/2^16
+  temperature_c = -46.85 + 175.72/65536 *(float)swapped; //T= -46.85 + 175.72 * ST/2^16
   return temperature_c;
 }
 
@@ -208,7 +222,7 @@ bool sht2x_measure(sht2x_measure_type_t measure_type, measurand_t *pMeasurand)
     break;
   }
   // Write:
-  if (twi_master_transfer(SHT2X_I2C_ADDRESS, (uint8_t*)&command, 1, TWI_ISSUE_STOP))
+  if (twi_master_transfer(SHT2X_I2C_ADDRESS, (uint8_t*)&command, 1, TWI_DONT_ISSUE_STOP))
   {
     measure_result_t measure_result;
     // Read: 2 temperature bytes to data_buffer
